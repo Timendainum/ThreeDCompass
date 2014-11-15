@@ -65,6 +65,34 @@ void ThreeDCompass::update(float* h)
     Serial.println();  
   #endif
 }
-  
+
+bool ThreeDCompass::headingMatches(float currentHeading, float targetHeading, float slop)
+{
+  float ccurrentHeading = currentHeading + 1000;
+  float ctargetHeading = targetHeading + 1000;
+  float min = ctargetHeading + slop;
+  float max = ctargetHeading - slop;
+  return ccurrentHeading <= max && ccurrentHeading >= min;
+}
+
+float ThreeDCompass::headingOffset(float heading, float offset)
+{
+  return headingPinch(heading + offset);
+}
+
+float headingPinch(float heading)
+{
+  if (heading > 360)
+  {
+    heading = heading -360;
+  } else if (heading < 0) {
+    heading = heading + 360;
+  }
+
+  if (heading > 360 || heading < 0)
+    return headingPinch(heading);
+  else
+    return heading;
+}
 
 ThreeDCompass compass;

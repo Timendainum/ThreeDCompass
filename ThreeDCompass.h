@@ -15,7 +15,7 @@
  */
 #ifndef __COMPASS_H__
 #define __COMPASS_H__
-#define __COMPASS_H__DEBUG 1
+#define __COMPASS_H__DEBUG 0
 #define DECINATION_ANGLE_DEGREES -1.0
 #define DECINATION_ANGLE_MINUTES 25.0
 #define OFFSET_X -312
@@ -33,6 +33,9 @@ class ThreeDCompass
   public:
   	void init();
   	void update(float* h);
+  	bool headingMatches(float currentHeading, float targetHeading, float slop);
+  	float headingOffset(float heading, float offset);
+  	float headingPinch(float heading);
 };
 
 extern ThreeDCompass compass;
