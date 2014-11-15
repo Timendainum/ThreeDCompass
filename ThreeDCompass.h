@@ -15,22 +15,24 @@
  */
 #ifndef __COMPASS_H__
 #define __COMPASS_H__
-#define __COMPASS_H__DEBUG 0
-
-#define HMC5883L_ADDR 0x1E //0011110b, I2C 7bit address of HMC5883
+#define __COMPASS_H__DEBUG 1
+#define DECINATION_ANGLE_DEGREES -1.0
+#define DECINATION_ANGLE_MINUTES 25.0
+#define OFFSET_X -312
+#define OFFSET_Y -165
 
 #include <Arduino.h>
 #include <Wire.h> //I2C Arduino Library
+#include "HMC5883L.h"
 
 class ThreeDCompass
 {
   private:
-  	static bool haveHMC5883L;
-  	bool detectHMC5883L();
+  	HMC5883L _compass;
 
   public:
   	void init();
-  	void update(int* x, int* y, int *z);
+  	void update(float* h);
 };
 
 extern ThreeDCompass compass;

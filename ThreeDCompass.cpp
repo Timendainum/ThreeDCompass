@@ -1,99 +1,69 @@
 #include "ThreeDCompass.h"
 
-bool ThreeDCompass::haveHMC5883L = false;
-
-bool ThreeDCompass::detectHMC5883L ()
-{
-  // read identification registers
-  Wire.beginTransmission(HMC5883L_ADDR); //open communication with HMC5883
-  Wire.write(10); //select Identification register A
-  Wire.endTransmission();
-  Wire.requestFrom(HMC5883L_ADDR, 3);
-  if(3 == Wire.available()) {
-    char a = Wire.read();
-    char b = Wire.read();
-    char c = Wire.read();
-    if(a == 'H' && b == '4' && c == '3')
-      return true;
-  }
-
-  return false;
-}
-
-
 void ThreeDCompass::init()
 {
-  //Initialize Serial and I2C communications
-  #if __COMPASS_H__DEBUG
-    Serial.println("Init Compass - GY271");
-  #endif
-  Wire.begin();
-  // lower I2C clock http://www.gammon.com.au/forum/?id=10896
-  TWBR = 78;  // 25 kHz 
-  TWSR |= _BV (TWPS0);  // change prescaler  
+  Serial.println("Initialize HMC5883L");
+  while (!_compass.begin())
+  {
+    Serial.println("Could not find a valid HMC5883L sensor, check wiring!");
+    delay(500);
+  }
+
+  // Set measurement range
+  _compass.setRange(HMC5883L_RANGE_1_3GA);
+
+  // Set measurement mode
+  _compass.setMeasurementMode(HMC5883L_CONTINOUS);
+
+  // Set data rate
+  _compass.setDataRate(HMC5883L_DATARATE_30HZ);
+
+  // Set number of samples averaged
+  _compass.setSamples(HMC5883L_SAMPLES_8);
+
+  // Set calibration offset. See HMC5883L_calibration.ino
+  _compass.setOffset(OFFSET_X, OFFSET_Y);
 }
 
-void ThreeDCompass::update(int* x, int* y, int *z)
+void ThreeDCompass::update(float* h)
 {
-  bool detect = detectHMC5883L();
+  Vector norm = _compass.readNormalize();
 
-  if(!haveHMC5883L) 
+  // Calculate heading
+  float heading = atan2(norm.YAxis, norm.XAxis);
+
+  // Set declination angle on your location and fix heading
+  // You can find your declination on: http://magnetic-declination.com/
+  // (+) Positive or (-) for negative
+  // For Bytom / Poland declination angle is 4'26E (positive)
+  // Formula: (deg + (min / 60.0)) / (180 / M_PI);
+  float declinationAngle = (DECINATION_ANGLE_DEGREES + (DECINATION_ANGLE_MINUTES / 60.0)) / (180 / M_PI);
+  heading += declinationAngle;
+
+  // Correct for heading < 0deg and heading > 360deg
+  if (heading < 0)
   {
-    if(detect) 
-    {
-      haveHMC5883L = true;
-      #if __COMPASS_H__DEBUG
-        Serial.println("We have HMC5883L, moving on");
-      #endif
-      // Put the HMC5883 IC into the correct operating mode
-      Wire.beginTransmission(HMC5883L_ADDR); //open communication with HMC5883
-      Wire.write(0x02); //select mode register
-      Wire.write(0x00); //continuous measurement mode
-      Wire.endTransmission();
-    }
-    else
-    {  
-#if __COMPASS_H__DEBUG
-      Serial.println("No HMC5883L detected!");
-#endif
-      return;
-    }
+    heading += 2 * PI;
   }
-  else
+
+  if (heading > 2 * PI)
   {
-    if(!detect) {
-      haveHMC5883L = false;
-      Serial.println("Lost connection to HMC5883L!");
-      return;
-    }
+    heading -= 2 * PI;
   }
 
-  //Tell the HMC5883 where to begin reading data
-  Wire.beginTransmission(HMC5883L_ADDR);
-  Wire.write(0x03); //select register 3, X MSB register
-  Wire.endTransmission();
+  // Convert to degrees
+  float headingDegrees = heading * 180/M_PI;
 
- //Read data from each axis, 2 registers per axis
-  Wire.requestFrom(HMC5883L_ADDR, 6);
-  if(6<=Wire.available()){
-    *x = Wire.read()<<8; //X msb
-    *x |= Wire.read(); //X lsb
-    *z = Wire.read()<<8; //Z msb
-    *z |= Wire.read(); //Z lsb
-    *y = Wire.read()<<8; //Y msb
-    *y |= Wire.read(); //Y lsb
-  }
-  
-  //Print out values of each axis
-#if __COMPASS_H__DEBUG
-  Serial.print("x: ");
-  Serial.print(*x);
-  Serial.print("  y: ");
-  Serial.print(*y);
-  Serial.print("  z: ");
-  Serial.println(*z);
-#endif
-  
+  *h = headingDegrees;
+
+  // Output
+  #if __COMPASS_H__DEBUG
+    Serial.print(" Heading = ");
+    Serial.print(heading);
+    Serial.print(" Degress = ");
+    Serial.print(headingDegrees);
+    Serial.println();  
+  #endif
 }
   
 
